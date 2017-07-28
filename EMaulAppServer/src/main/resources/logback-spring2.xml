@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- configuration file for LogBack (slf4J implementation)
+See here for more details: http://gordondickens.com/wordpress/2013/03/27/sawing-through-the-java-loggers/ -->
+<configuration scan="true" scanPeriod="600 seconds">
+
+	<include resource="org/springframework/boot/logging/logback/base.xml"/>
+
+    <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+        <resetJUL>true</resetJUL>
+    </contextListener>
+
+    <!-- To enable JMX Management -->
+    <jmxConfigurator />
+
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    	<springProfile name="local">
+	        <file>C:/nas1/logs/emaulapp.log</file>
+	        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+	            <fileNamePattern>C:/nas/logs/backup/emaulapp.%d{yyyy-MM-dd}.log</fileNamePattern>
+	            <maxHistory>3</maxHistory>
+	        </rollingPolicy>
+		</springProfile>
+		<springProfile name="dev">
+	        <file>/nas2/logs/emaulapp.log</file>
+	        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+	            <fileNamePattern>/nas/logs/backup/emaulapp.%d{yyyy-MM-dd}.log</fileNamePattern>
+	            <maxHistory>10</maxHistory>
+	        </rollingPolicy>
+		</springProfile>
+		<springProfile name="real">
+	        <file>/nas3/logs/emaulapp.log</file>
+	        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+	            <fileNamePattern>/nas/logs/backup/emaulapp.%d{yyyy-MM-dd}.log</fileNamePattern>
+	            <maxHistory>30</maxHistory>
+	        </rollingPolicy>
+		</springProfile>
+ 
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+   			
+
+    
+ 
+	<logger name="org.apache" level="info" />
+	<logger name="org.springframework" level="info" />
+	<logger name="org.hibernate" level="info" />
+	<logger name="org.mybatis" level="info" />
+	<logger name="org.jboss" level="info" />
+	<logger name="sun.net" level="info" />
+
+	<!-- log4jdbc-log4j2 -->
+	<logger name="jdbc.sqltiming" level="OFF"/>
+	<logger name="jdbc.audit" level="OFF"/>
+	<logger name="jdbc.resultset" level="OFF"/>
+	<logger name="jdbc.resultsettable" level="OFF"/>
+	<logger name="jdbc.connection" level="OFF"/>
+
+	<springProfile name="local">
+		<logger name="com.jaha.server.emaul" level="DEBUG" />
+	</springProfile>
+	<springProfile name="dev">
+		<logger name="com.jaha.server.emaul" level="debug" />
+	</springProfile>
+	<springProfile name="real">
+		<logger name="com.jaha.server.emaul" level="info" />
+	</springProfile>
+ 
+    <root level="debug">
+		<!-- <appender-ref ref="console"/> -->
+		<appender-ref ref="FILE"/>
+    </root>
+
+</configuration>

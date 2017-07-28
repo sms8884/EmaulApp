@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jaha.server.emaul.v2.mapper.board.BoardCommentMapper">
+
+	<insert id="insertBoardComment" parameterType="BoardCommentVo" useGeneratedKeys="true" keyProperty="id">
+	    INSERT /* insertBoardComment, 전강욱(realsnake@jahasmart.com) */ INTO board_comment (
+	        post_id
+	        , content
+	        , blocked
+	        , reply_count
+	        , display_yn
+	        , req_ip
+	        , user_id
+	        , reg_date
+	    ) VALUES (
+	        #{postId}
+	        , #{content}
+	        , b'0'
+	        , 0
+	        , 'Y'
+	        , #{reqIp}
+	        , #{userId}
+	        , NOW()
+	    )
+	</insert>
+
+	<update id="updateBoardComment" parameterType="BoardCommentVo">
+	    UPDATE /* updateBoardComment, 전강욱(realsnake@jahasmart.com) */ board_comment
+		SET content = #{content}
+		, req_ip = #{reqIp}
+		, mod_id = #{modId}
+		, mod_date = NOW()
+	    WHERE id = #{id}
+	</update>
+
+	<update id="updateDisplayYn" parameterType="BoardCommentVo">
+	    UPDATE /* updateDisplayYn, 전강욱(realsnake@jahasmart.com) */ board_comment
+	    SET display_yn = #{displayYn}
+		, req_ip = #{reqIp}
+		, mod_id = #{modId}
+		, mod_date = NOW()
+	    WHERE id = #{id}
+	</update>
+
+	<update id="updateBlocked" parameterType="BoardCommentVo">
+	    UPDATE /* updateBlocked, 전강욱(realsnake@jahasmart.com) */ board_comment
+		SET blocked = #{blocked}
+		, req_ip = #{reqIp}
+		, mod_id = #{modId}
+		, mod_date = NOW()
+	    WHERE id = #{id}
+	</update>
+
+	<!-- 답글수 감소 -->
+	<update id="updateReplyCount" parameterType="long">
+	    UPDATE /* updateReplyCount, 전강욱(realsnake@jahasmart.com) */ board_comment
+		SET reply_count = reply_count - 1
+	    WHERE id = #{id}
+	</update>
+
+	<select id="selectBoardComment" parameterType="long" resultType="BoardCommentVo">
+	    SELECT /* selectBoardComment, 전강욱(realsnake@jahasmart.com) */ id
+	    , post_id
+	    , content
+	    , blocked
+	    , reply_count
+	    , user_id
+	    , reg_date
+		FROM board_comment
+		WHERE id = #{id}
+	</select>
+
+	<sql id="whereClauseOfBoardComment">
+	    WHERE BC.post_id = #{postId}
+	    	AND BC.id &lt;= #{lastCommentId}
+			AND BC.blocked = b'0'
+			AND BC.display_yn = 'Y'
+	</sql>
+
+	<sql id="orderClauseOfBoardComment">
+        <if test="pagingHelper.sortList != null">
+        	ORDER BY
+            <foreach collection="pagingHelper.sortList" item="sort" separator="," open="" close="">
+                ${sort.column} ${sort.ascOrDesc}
+            </foreach>
+        </if>
+	</sql>
+
+	<select id="selectBoardCommentListCount" parameterType="BoardDto" resultType="int">
+	    SELECT /* selectBoardCommentListCount, 전강욱(realsnake@jahasmart.com) */ COUNT(*)
+		FROM board_comment BC LEFT OUTER JOIN user U ON BC.user_id = U.id
+					  					 LEFT OUTER JOIN house H ON U.house_id = H.id
+                      					 LEFT OUTER JOIN apt A ON H.apt_id = A.id
+	    <include refid="whereClauseOfBoardComment" />
+	</select>
+
+	<select id="selectBoardCommentList" parameterType="BoardDto" resultType="BoardCommentVo">
+	    SELECT /* selectBoardCommentList, 전강욱(realsnake@jahasmart.com) */ BC.id
+	    , BC.post_id
+	    , BC.content
+	    , BC.blocked
+	    , BC.reply_count
+	    , BC.user_id
+	    , BC.reg_date
+		, IFNULL(U.full_name, '탈퇴회원') AS full_name /* 암호화된 사용자명 */
+		, IFNULL(U.nickname, '익명') AS nickname
+		, IFNULL(H.dong, '0') AS dong
+		, IFNULL(H.ho, '0') AS ho
+		FROM board_comment BC LEFT OUTER JOIN user U ON BC.user_id = U.id
+					  					 LEFT OUTER JOIN house H ON U.house_id = H.id
+                      					 LEFT OUTER JOIN apt A ON H.apt_id = A.id
+	    <include refid="whereClauseOfBoardComment" />
+		<include refid="orderClauseOfBoardComment" />
+	    LIMIT 0, #{pagingHelper.pageSize}
+	</select>
+
+</mapper>

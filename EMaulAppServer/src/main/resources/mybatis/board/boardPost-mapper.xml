@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jaha.server.emaul.v2.mapper.board.BoardPostMapper">
+
+	<insert id="insertBoardPost" parameterType="BoardPostVo" useGeneratedKeys="true" keyProperty="id">
+	    INSERT /* insertBoardPost, 전강욱(realsnake@jahasmart.com) */ INTO board_post (
+	        category_id
+	        , sub_category
+	        , title
+	        , content
+	        , image_count
+	        , range_all
+	        , file1
+	        , file2
+	        , view_count
+	        , count_empathy
+	        , comment_count
+	        , comment_display_yn
+	        , blocked
+	        , display_yn
+	        , top_fix
+	        , file_group_key
+	        , display_platform
+	        , push_send_yn
+	        , blind_yn
+	        , req_ip
+	        , user_id
+	        , reg_date
+	    ) VALUES (
+	        #{categoryId}
+	        , #{subCategory}
+	        , #{title}
+	        , #{content}
+	        , #{imageCount}
+	        , #{rangeAll}
+	        , #{file1}
+	        , #{file2}
+	        , 1
+	        , 1
+	        , 0
+	        , IFNULL(#{commentDisplayYn}, 'Y')
+	        , b'0'
+	        , IFNULL(#{displayYn}, 'Y')
+	        , #{topFix}
+	        , #{fileGroupKey}
+	        , #{displayPlatform}
+	        , IFNULL(#{pushSendYn}, 'N')
+	        , IFNULL(#{blindYn}, 'N')
+	        , #{reqIp}
+	        , #{userId}
+	        , NOW()
+	    )
+	</insert>
+
+	<update id="updateBoardPost" parameterType="BoardPostVo">
+	    UPDATE /* updateBoardPost, 전강욱(realsnake@jahasmart.com) */ board_post
+	    <set>
+		    <if test=' subCategory != null and !"".equals(subCategory) '>sub_category = #{subCategory},</if>
+		    <if test=' title != null and !"".equals(title) '>title = #{title},</if>
+		    <if test=' content != null and !"".equals(content) '>content = #{content},</if>
+		    <if test=' imageCount != null and imageCount >= 0 '>image_count = #{imageCount},</if>
+		    <if test=' rangeAll != null '>range_all = #{rangeAll},</if>
+		    <if test=' file1 != null and !"".equals(file1) '>file1 = #{file1},</if>
+		    <if test=' file2 != null and !"".equals(file2) '>file2 = #{file2},</if>
+		    <if test=' topFix != null '>top_fix = #{topFix},</if>
+		   	<if test=' "Y".equals(displayYn) or "N".equals(displayYn) '>display_yn = #{displayYn},</if>
+		    <if test=' fileGroupKey != null and !"".equals(fileGroupKey) '>file_group_key = #{fileGroupKey},</if>
+		    <if test=' displayPlatform != null and !"".equals(displayPlatform) '>display_platform = #{displayPlatform},</if>
+		    <if test=' "Y".equals(pushSendYn) or "N".equals(pushSendYn) '>push_send_yn = #{pushSendYn},</if>
+		    <if test=' firstEditorImageThumbUrl != null and !"".equals(firstEditorImageThumbUrl) '>first_editor_image_thumb_url = #{firstEditorImageThumbUrl},</if>
+		    <if test=' modId != null and modId > 0 '>req_ip = #{reqIp}, mod_id = #{modId}, mod_date = NOW()</if>
+	    </set>
+	    WHERE id = #{id}
+	</update>
+
+	<update id="updateDisplayYn" parameterType="BoardPostVo">
+	    UPDATE /* updateDisplayYn, 전강욱(realsnake@jahasmart.com) */ board_post
+	    SET display_yn = #{displayYn}
+	    , top_fix = b'0'
+	    , req_ip = #{reqIp}
+	    , mod_id = #{modId}
+	    , mod_date = NOW()
+	    WHERE id = #{id}
+	</update>
+
+	<!-- 뷰 카운트 증가 -->
+	<update id="updateViewCount" parameterType="long">
+	    UPDATE /* updateViewCount, 전강욱(realsnake@jahasmart.com) */ board_post
+		SET view_count = view_count + 1
+	    WHERE id = #{id}
+	</update>
+
+	<!-- 상단고정 -->
+	<update id="updateTopFix" parameterType="BoardPostVo">
+	    UPDATE /* updateTopFix, 전강욱(realsnake@jahasmart.com) */ board_post
+		SET top_fix = #{topFix}
+	    WHERE id = #{id}
+	</update>
+
+	<!-- 게시글 차단 -->
+	<update id="updateBlocked" parameterType="BoardPostVo">
+	    UPDATE /* updateBlocked, 전강욱(realsnake@jahasmart.com) */ board_post
+		SET blocked = #{blocked}
+	    , req_ip = #{reqIp}
+	    , mod_id = #{modId}
+	    , mod_date = NOW()
+	    WHERE id = #{id}
+	</update>
+
+	<!-- 댓글수 감소 -->
+	<update id="updateCommentCount" parameterType="long">
+	    UPDATE /* updateCommentCount, 전강욱(realsnake@jahasmart.com) */ board_post
+		SET comment_count = comment_count - 1
+	    WHERE id = #{id}
+	</update>
+
+	<!-- 이미지 삭제 시 이미지 카운트 감소 -->
+	<update id="updateImageCount" parameterType="BoardPostVo">
+	    UPDATE /* updateImageCount, 전강욱(realsnake@jahasmart.com) */ board_post
+		SET image_count = image_count - 1
+	    , req_ip = #{reqIp}
+	    , mod_id = #{modId}
+	    , mod_date = NOW()
+	    WHERE id = #{id}
+	    	AND image_count &gt; 0
+	</update>
+
+	<!-- 선택한 첨부파일 삭제 -->
+	<update id="updateAttachFileNull" parameterType="BoardPostVo">
+	    UPDATE /* updateAttachFileNull, 전강욱(realsnake@jahasmart.com) */ board_post
+		<set>
+		    <if test=' file1 != null and "delete".equals(file1) '>file1 = null,</if>
+		    <if test=' file2 != null and "delete".equals(file2) '>file2 = null,</if>
+		    <if test=' modId != null and modId > 0 '>req_ip = #{reqIp}, mod_id = #{modId}, mod_date = NOW()</if>
+	    </set>
+	    WHERE id = #{id}
+	</update>
+
+	<select id="selectBoardPost" parameterType="long" resultType="BoardPostVo">
+	    SELECT /* selectBoardPost, 전강욱(realsnake@jahasmart.com) */ id
+	    , sub_category
+	    , category_id
+	    , title
+	    , content
+	    , image_count
+	    , range_all
+	    , file1
+	    , file2
+	    , view_count
+	    , count_empathy
+	    , comment_count
+	    , comment_display_yn
+	    , blocked
+	    , display_yn
+	    , top_fix
+	    , file_group_key
+	    , display_platform
+	    , push_send_yn
+	    , blind_yn
+	    , first_editor_image_thumb_url
+	    , user_id
+	    , reg_date
+	    , mod_id
+	    , mod_date
+	    FROM board_post
+	    WHERE id = #{id}
+	</select>
+
+	<sql id="whereClauseOfBoardPost">
+	    <where>
+	    	AND id &lt; #{lastPostId}
+		    AND category_id = #{categoryId}
+		    <if test=' subCategory != null and !"".equals(subCategory) '>AND sub_category = #{subCategory}</if>
+		    AND blocked = b'0'
+		    <choose>
+		    	<when test=' "android".equals(displayPlatform) '>AND (INSTR(display_platform, 'android') &gt; 0 OR display_platform IS NULL OR display_platform ='all' )</when>
+		    	<when test=' "ios".equals(displayPlatform) '>AND (INSTR(display_platform, 'ios') &gt; 0 OR display_platform IS NULL OR display_platform ='all')</when>
+		    	<otherwise></otherwise>
+		    </choose>
+		    <choose>
+		    	<when test=' "Y".equals(displayYn) '>AND display_yn = 'Y'</when>
+		    	<when test=' "N".equals(displayYn) '>AND display_yn = 'N'</when>
+		    	<otherwise></otherwise>
+		    </choose>
+		    <if test=' topFix != null '>AND top_fix = #{topFix}</if>
+		    <choose>
+		    	<when test='pagingHelper.search.startDate != null and !pagingHelper.search.startDate.equals("")'>
+			    	AND reg_date &gt;= CONCAT(#{pagingHelper.search.startDate}, ' 00:00:00')
+			    	<if test='pagingHelper.search.endDate != null and !pagingHelper.search.endDate.equals("")'>
+			    		AND reg_date &lt;= CONCAT(#{pagingHelper.search.endDate}, ' 23:59:59')
+			    	</if>
+		    	</when>
+		    	<otherwise>
+			    	<if test='pagingHelper.search.endDate != null and !pagingHelper.search.endDate.equals("")'>
+			    		AND reg_date &lt;= CONCAT(#{searchEndDate}, ' 23:59:59')
+			    	</if>
+		    	</otherwise>
+		    </choose>
+	    	<if test='pagingHelper.search.keyword != null and !pagingHelper.search.keyword.equals("")'>
+			    <choose>
+			    	<when test='pagingHelper.search.item.equals("title")'>
+						AND title LIKE CONCAT('%', #{pagingHelper.search.keyword}, '%')
+			    	</when>
+			    	<when test='pagingHelper.search.item.equals("content")'>
+						AND content LIKE CONCAT('%', #{pagingHelper.search.keyword}, '%')
+			    	</when>
+			    	<otherwise>
+						AND (title LIKE CONCAT('%', #{pagingHelper.search.keyword}, '%') OR content LIKE CONCAT('%', #{pagingHelper.search.keyword}, '%'))
+			    	</otherwise>
+			    </choose>
+	    	</if>
+	    </where>
+	</sql>
+
+	<sql id="orderClauseOfBoardPost">
+        <if test="pagingHelper.sortList != null">
+        	ORDER BY
+            <foreach collection="pagingHelper.sortList" item="sort" separator="," open="" close="">
+                ${sort.column} ${sort.ascOrDesc}
+            </foreach>
+        </if>
+	</sql>
+
+	<select id="selectBoardPostListCount" parameterType="BoardDto" resultType="int">
+	    SELECT /* selectBoardPostListCount, 전강욱(realsnake@jahasmart.com) */ COUNT(*)
+	    FROM board_post
+	    <include refid="whereClauseOfBoardPost" />
+	</select>
+
+	<select id="selectBoardPostList" parameterType="BoardDto" resultType="BoardPostVo">
+	    SELECT /* selectBoardPostList, 전강욱(realsnake@jahasmart.com) */ id
+	    , category_id
+	    , sub_category
+	    , title
+	    , content
+	    , image_count
+	    , range_all
+	    , file1
+	    , file2
+	    , view_count
+	    , count_empathy
+	    , comment_count
+	    , comment_display_yn
+	    , blocked
+	    , display_yn
+	    , top_fix
+	    , file_group_key
+	    , display_platform
+	    , push_send_yn
+	    , blind_yn
+	    , first_editor_image_thumb_url
+	    , user_id
+	    , reg_date
+	    , mod_id
+	    , mod_date
+	    FROM board_post
+	    <include refid="whereClauseOfBoardPost" />
+	    <include refid="orderClauseOfBoardPost" />
+	    LIMIT 0, #{pagingHelper.pageSize}
+	</select>
+
+
+
+
+	<!-- 앱 메인 템플릿 용 게시물 조회  -->
+	<sql id="whereClauseOfBoardCategoryPost">
+	    <where>
+	    	AND bp.blind_yn = 'N'
+    		AND bp.blocked = b'0'
+    		<!-- 시스템 공지사항 -->
+    		<if test=' displayPlatform != null '>
+    			AND (bp.display_platform LIKE '%all%' OR bp.display_platform LIKE CONCAT('%',#{displayPlatform},'%') OR bp.display_platform IS NULL)
+    		</if>
+		    <choose>
+		    	<when test=' "N".equals(displayYn) '>AND bp.display_yn = 'N'</when>
+		    	<otherwise>AND bp.display_yn = 'Y'</otherwise>
+		    </choose>
+		    <if test=' topFix != null '>AND bp.top_fix = #{topFix}</if>
+	    	<if test='categoryIds != null'>
+				AND bc.id IN
+				<foreach collection="categoryIds" item="item" index="index" separator="," open="(" close=")">
+					#{item}
+				</foreach>
+	    	</if>
+	    	<if test='categoryType != null and categoryType.equals("event")'>
+	    		AND bp.id IN (
+	    			SELECT post_id FROM board_post_event WHERE end_date >= CONCAT(DATE_FORMAT(NOW(), '%Y%m%d'),'0000')
+	    		)
+	    	</if>
+	    	<!-- 지역 구분 : 단체게시판 -->
+	    	<if test='user != null'>
+	    		AND bp.id IN (
+	    			SELECT bp.id
+	    			FROM board_post bp
+	    				JOIN board_category bc ON bp.category_id = bc.id
+	    				JOIN board_post_range bpr ON bp.id = bpr.post_id
+    				WHERE
+    					<!-- bc.id = 7608 -->
+    					1 = 1
+    					<if test='categoryIds != null'>
+							AND bc.id IN
+							<foreach collection="categoryIds" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+				    	</if>
+				    	AND bpr.range_sido = #{user.house.apt.address.시도명}
+    					AND bpr.range_sigungu = #{user.house.apt.address.시군구명}
+    					<!-- AND bpr.range_dong = user.house.apt.address.법정읍면동명 -->
+	    		)
+	    	</if>
+	    </where>
+	</sql>
+
+	<!-- 앱 메인템플릿 용 게시물 리스트 -->
+	<select id="selectBoardCategoryPostList" parameterType="BoardDto" resultType="map">
+	    SELECT /* selectBoardCategoryPostList, 조영태(cyt@jahasmart.com) */ bp.id AS postId
+	    , bp.category_id AS categoryId
+	    , bp.title
+	    <if test=' topFix != null '>, 'community-topfix' AS categoryType</if>
+	    <if test=' topFix == null '>, bc.type AS categoryType</if>
+	    , bc.name AS categoryName
+	    , bp.top_fix AS topFix
+	    FROM board_post bp JOIN board_category bc
+	    		ON bp.category_id = bc.id
+	    <include refid="whereClauseOfBoardCategoryPost" />
+	    ORDER BY bp.reg_date DESC
+	</select>
+
+	<!-- 카테고리 아이디에 해당하는 마지막 게시글 번호를 검색한다. -->
+	<select id="selectBoardPostNextPageToken" parameterType="BoardDto" resultType="long">
+	    SELECT /* selectBoardPostNextPageToken, 전강욱(realsnake@jahasmart.com) */ IFNULL(MAX(id), 0)
+	    FROM board_post
+		<include refid="whereClauseOfBoardPost" />
+	</select>
+
+	<!-- 앱 게시판 new icon 표기용 -->
+	<!-- TODO : 게시판 카테고리 확인 및 USER_ID 포함여부 확인 -->
+	<select id="selectBoardSum" parameterType="java.util.List" resultType="map">
+		<foreach item="item" index="index" collection="list">
+			<if test="index gt 0">
+	    	UNION
+	    	</if>
+		    SELECT /* selectBoardSum, 조영태(cyt@jahasmart.com) */
+			    IFNULL(bc.id, 0) AS categoryId
+			    , IFNULL(bc.type, '') AS categoryType
+			    , IFNULL(bc.name, '') AS categoryName
+			    , IFNULL((select max(reg_date) from board_post where category_id = bc.id and display_yn = 'Y' and blocked = b'0' AND blind_yn = 'N' <if test='item.lastRegDate != null'> AND reg_date > #{item.lastRegDate} </if> ),'') AS maxRegDate
+			    , IFNULL((select count(*) from board_post where category_id = bc.id and display_yn = 'Y' and blocked = b'0' AND blind_yn = 'N' <if test='item.lastRegDate != null'> AND reg_date > #{item.lastRegDate} </if> ),0) AS maxRegCnt
+		    FROM board_category bc
+		    WHERE
+		    	type = #{item.categoryType}
+	    	<!-- <if test="!item.last">UNION</if> this condition not work -->
+	    	<!-- <if test="item.size() != (index + 1)">
+	    	UNION
+	    	</if> -->
+    	</foreach>
+	</select>
+
+</mapper>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jaha.server.emaul.mapper.WeatherMapper">
+
+	<select id="selectPollutionPushList" parameterType="String" resultType="Long">
+		select /* selectPollutionPushList */
+		       u.id
+		from
+		     (select a.id, a.address_code
+		        from apt a join address b
+		                     on a.address_code = b.건물관리번호
+		                    and b.시도명 = #{sido}
+		     ) addr
+		     join house h on h.apt_id = addr.id
+		     join user u on u.house_id = h.id
+		     join setting s on s.user_id = u.id and s.noti_air_pollution = 1
+	</select>
+
+	<select id="getPollutionCache" parameterType="Map" resultType="Map">
+		select data_time
+			  ,pm10_value
+			  ,pm10_value24
+			  ,pm10_grade
+			  ,pm25_value
+			  ,pm25_value24
+			  ,pm25_grade
+		  from pollution_cache
+		 where 1 = 1
+		   and (data_time, addr) = (#{dataTime}, #{addr})
+	</select>
+
+	<insert id="insertPollutionCache" parameterType="Map">
+		insert into pollution_cache
+		values (#{dataTime}, #{addr}, #{pm10Value}, #{pm10Value24}, #{pm10Grade}, #{pm25Value}, #{pm25Value24}, #{pm25Grade})
+	</insert>
+
+</mapper>

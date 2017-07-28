@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jaha.server.emaul.v2.mapper.board.BoardCategoryMapper">
+
+	<insert id="insertBoardCategory" parameterType="BoardCategoryVo">
+	    INSERT /* insertBoardCategory, 전강욱(realsnake@jahasmart.com) */ INTO board_category (
+	        apt_id
+	        , json_array_readable_user_type
+	        , json_array_writable_user_type
+	        , name
+	        , ord
+	        , type
+	        , content_mode
+	        , push_after_write
+	        , user_privacy
+	        , del_yn
+	        , comment_display_yn
+	        , req_ip
+	        , user_id
+	        , reg_date
+	    ) VALUES (
+	        #{aptId}
+	        , #{jsonArrayReadableUserType}
+	        , #{jsonArrayWritableUserType}
+	        , #{name}
+	        , (select IFNULL(max(B.ord),0) + 1 from board_category B where apt_id = #{aptId})
+	        , #{type}
+	        , #{contentMode}
+	        , #{pushAfterWrite}
+	        , #{userPrivacy}
+	        , 'N'
+	        , IFNULL(#{commentDisplayYn}, 'Y')
+	        , #{reqIp}
+	        , #{userId}
+	        , NOW()
+	    )
+	</insert>
+
+	<update id="updateBoardCategory" parameterType="BoardCategoryVo">
+	    UPDATE /* updateBoardCategory, 전강욱(realsnake@jahasmart.com) */ board_category
+	    <set>
+		    <if test=' jsonArrayReadableUserType != null and !"".equals(jsonArrayReadableUserType) '>json_array_readable_user_type = #{jsonArrayReadableUserType},</if>
+		    <if test=' jsonArrayWritableUserType != null and !"".equals(jsonArrayWritableUserType) '>json_array_writable_user_type = #{jsonArrayWritableUserType},</if>
+		    <if test=' name != null and !"".equals(name) '>name = #{name},</if>
+		    <if test=' ord != null and ord > 0 '>ord = #{ord},</if>
+		    <if test=' type != null and !"".equals(type) '>type = #{type},</if>
+		    <if test=' contentMode != null and !"".equals(contentMode) '>content_mode = #{contentMode},</if>
+		    <if test=' "Y".equals(pushAfterWrite) or "N".equals(pushAfterWrite) '>push_after_write = #{pushAfterWrite},</if>
+		    <if test=' userPrivacy != null and !"".equals(userPrivacy) '>user_privacy = #{userPrivacy},</if>
+		    <if test=' "Y".equals(commentDisplayYn) or "N".equals(commentDisplayYn) '>commentDisplayYn = #{commentDisplayYn},</if>
+		    <if test=' modId != null and modId > 0 '>req_ip = #{reqIp}, mod_id = #{modId}, mod_date = NOW()</if>
+	    </set>
+	    WHERE id = #{id}
+	</update>
+
+	<update id="updateDelYn" parameterType="BoardCategoryVo">
+	    UPDATE /* updateDisplayYn, 전강욱(realsnake@jahasmart.com) */ board_category
+	    SET del_yn = #{delYn}
+		, req_ip = #{reqIp}
+		, mod_id = #{modId}
+		, mod_date = NOW()
+	    WHERE id = #{id}
+	</update>
+
+	<select id="selectBoardCategory" parameterType="long" resultType="BoardCategoryVo">
+	    SELECT /* selectBoardCategory, 전강욱(realsnake@jahasmart.com) */ id
+	    , apt_id
+	    , json_array_readable_user_type
+	    , json_array_writable_user_type
+	    , name
+	    , ord
+	    , type
+	    , content_mode
+	    , push_after_write
+	    , user_privacy
+	    , del_yn
+	    , comment_display_yn
+	    , user_id
+	    , reg_date
+	    , mod_id
+	    , mod_date
+	    FROM board_category
+	    WHERE id = #{id}
+	</select>
+
+	<select id="selectBoardCategoryListByAptId" parameterType="long" resultType="BoardCategoryVo">
+	    SELECT /* selectBoardCategoryListByAptId, 전강욱(realsnake@jahasmart.com) */ id
+	    , apt_id
+	    , json_array_readable_user_type
+	    , json_array_writable_user_type
+	    , name
+	    , ord
+	    , type
+	    , content_mode
+	    , push_after_write
+	    , user_privacy
+	    , del_yn
+	    , comment_display_yn
+	    , user_id
+	    , reg_date
+	    , mod_id
+	    , mod_date
+	    FROM board_category
+	    WHERE apt_id = #{aptId}
+	    	AND del_yn = 'N'
+	</select>
+
+	<sql id="whereClauseOfBoardCategory">
+		<where>
+			<!-- 시스템 공지사항, 단체게시판, 이벤트는 아파트없음 -->
+			<if test='aptId != null and !aptId.equals("")'>
+				AND apt_id = #{aptId}
+			</if>
+	    	<if test='categoryType != null and !categoryType.equals("")'>
+	    		AND type = #{categoryType}
+	    	</if>
+    		AND del_yn = 'N'
+   		</where>
+	</sql>
+
+	<select id="selectBoardCategoryListCount" parameterType="BoardDto" resultType="int">
+	    SELECT /* selectBoardCategoryListCount, 전강욱(realsnake@jahasmart.com) */ COUNT(*)
+	    FROM board_category
+	    <include refid="whereClauseOfBoardCategory" />
+	</select>
+
+	<select id="selectBoardCategoryList" parameterType="BoardDto" resultType="BoardCategoryVo">
+	    SELECT /* selectBoardCategoryList, 전강욱(realsnake@jahasmart.com) */ id
+	    , apt_id
+	    , json_array_readable_user_type
+	    , json_array_writable_user_type
+	    , name
+	    , ord
+	    , type
+	    , content_mode
+	    , push_after_write
+	    , user_privacy
+	    , del_yn
+	    , comment_display_yn
+	    , user_id
+	    , reg_date
+	    , mod_id
+	    , mod_date
+	    FROM board_category
+	    <include refid="whereClauseOfBoardCategory" />
+	    <!-- LIMIT #{pagingHelper.startNum}, #{pagingHelper.endNum} -->
+	</select>
+
+</mapper>

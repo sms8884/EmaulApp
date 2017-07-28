@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jaha.server.emaul.mapper.CommonMapper">
+
+    <select id="selectUdsMsg" parameterType="map" resultType="map">
+    /* selectUdsMsg */
+        SELECT CMID
+        FROM uds_msg
+        WHERE ETC1 = #{code}
+        AND ETC2 = #{key}
+        AND DEST_PHONE = #{phone}
+    </select>
+
+
+   	<select id="selectCodeList" parameterType="com.jaha.server.emaul.model.CommonCode" resultType="map">
+		SELECT code_group AS codeGroup
+					,code
+					,name
+					,IFNULL(sort_order, 0) AS sortOrder
+					,use_yn AS useYn
+		FROM common_code
+		WHERE code_group = #{codeGroup}
+		AND use_yn ='Y'
+		order by sort_order asc
+	</select>
+	
+	<select id="selectDate" resultType="java.util.Date">
+    /* selectDate */
+        SELECT now()
+    </select>
+    
+    <insert id="saveAppPageViewLog" parameterType="map">
+    /* saveAppPageViewLog */
+        INSERT INTO app_page_view_log ( page_code, user_id, reg_date )
+        VALUES ( #{pageCode}, ${userId}, now() )
+    </insert>
+
+</mapper>

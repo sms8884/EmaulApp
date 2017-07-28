@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jaha.server.emaul.mapper.NewsMapper">
+
+	<select id="selectLockScreenNewsList" parameterType="map" resultType="map">
+	/* selectLockScreenNewsList */
+		SELECT *
+        FROM 
+        (
+	        SELECT b.id
+	              ,b.title
+	              ,b.content
+	              ,date_format(b.reg_date, '%Y-%m-%d %H:%i:%s') as reg_date
+	              ,'today' as news_type
+	              ,'e마을' as news_type_name
+	        FROM board_post as b
+	                , ( 
+	                    SELECT address.시도명 as sido
+	                           , address.시군구명 as gugun
+	                           , user.id as user_id
+	                           , house.apt_id
+	                           , board_category.id as category_id
+	                    FROM address, user
+	                            , house, apt
+	                            , board_category
+	                    WHERE user.house_id = house.id
+	                    AND house.apt_id = apt.id
+	                    AND apt.address_code = address.건물관리번호
+	                    AND apt.id = board_category.apt_id
+	                    AND board_category.type ='today'
+	                    AND user.id = #{userId}
+	                    ) as a
+	        <!-- [START] 단체관리자 기능 추가 : 마을 뉴스 리스트 by PNS 2016.09.26 -->
+			<!-- 마을뉴스 타겟주소 구조가 '경기도'의 경우 '수원시 권선구' 시/구가 같이 있는 구조라서 '수원시' 전체에 권한을 주기가 힘듬 ==> 문자열에 들어있는지만 체크하는 것으로 수정하고 range_all은 제일 먼제 체크하게 수정함   -->
+			WHERE (b.category_id = a.category_id OR (b.range_all=1 OR b.range_sido=IF(b.range_sigungu='', a.sido, null) OR (b.range_sigungu!='' AND LOCATE(b.range_sigungu, a.gugun) > 0)))
+			<!-- [END] -->
+	        AND b.display_yn ='Y'
+	        <if test="lastDate != null and lastDate != ''">
+	            AND b.reg_date <![CDATA[<]]> str_to_date(#{lastDate}, '%Y-%m-%d %H:%i:%s')                
+	        </if>
+	        ORDER BY reg_date DESC
+	        LIMIT #{size}
+        ) a
+        
+        UNION
+        
+        SELECT *
+        FROM 
+        (
+            SELECT news_cd as id
+                  ,news_title
+                  ,news_content as content
+                  ,date_format(news_app_edt, '%Y-%m-%d %H:%i:%s') as reg_date
+                  ,'metro' as news_type
+                  ,'메트로신문' as news_type_name
+            FROM metro_news
+            <where>
+                <if test="lastDate != null and lastDate != ''">
+                    AND news_app_edt <![CDATA[<]]> str_to_date(#{lastDate}, '%Y-%m-%d %H:%i:%s')                
+                </if>
+            </where>
+            ORDER BY news_app_edt DESC
+            LIMIT #{size}
+        ) a
+        ORDER BY reg_date DESC
+        LIMIT #{size} 
+	</select>
+	
+</mapper>

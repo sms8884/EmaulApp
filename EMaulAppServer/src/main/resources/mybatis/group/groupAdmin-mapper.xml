@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jaha.server.emaul.v2.mapper.group.GroupAdminMapper">
+
+	<!-- 관련 테이블 : groupadmin_target_area -->
+
+	<!-- 단체관리자 정보 조회 -->
+	<select id="selectGroupAdminByArea" parameterType="GroupAdminVo" resultType="GroupAdminVo">
+	    SELECT /* selectGroupAdminPerArea  전강욱(realsnake@jahasmart.com) */ gta.id
+    	, gta.apt_id
+    	, gta.user_id
+    	, gta.area1
+    	, gta.area2
+    	, gta.area3
+    	, gta.area4
+    	, gta.group_address
+    	, gta.group_zipcode
+    	, gta.group_phone1
+    	, gta.group_phone2
+    	, gta.group_phone3
+    	, gta.name
+    	, gta.phone1
+    	, gta.phone2
+    	, gta.phone3
+    	, gta.email
+    	, gta.gu_name
+    	, gta.gu_url
+    	, gta.org_name
+    	, gta.org_url
+	    FROM
+	    	groupadmin_target_area gta
+	    WHERE gta.area1 = #{area1}
+	    	<if test=' area2 != null and !"".equals(area2) '>AND gta.area2 = #{area2}</if>
+	    	<if test=' area3 != null and !"".equals(area3) '>AND gta.area3 = #{area3}</if>
+	    	<if test=' userId != null and !"".equals(userId) '>AND gta.user_id = #{userId}</if>
+	</select>
+
+</mapper>

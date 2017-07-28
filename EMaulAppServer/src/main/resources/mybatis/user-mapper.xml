@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jaha.server.emaul.mapper.UserMapper">
+
+    <sql id="sql_selectUser">
+        SELECT l1.id
+		      ,l1.email
+		      ,l1.full_name
+		      ,l1.phone
+		      ,l1.birth_year
+		      ,l1.gender
+		      ,DATE_FORMAT(l1.reg_date, '%Y-%m-%d %H:%i') reg_date
+		      ,DATE_FORMAT(l1.deactive_date, '%Y-%m-%d %H:%i') deactive_date
+		      ,l1.nickname
+		      ,l1.address_detail
+		      ,l2.dong
+		      ,l2.ho
+		      ,l2.apt_id
+		      ,l3.name apt_name
+		      ,l3.address_code
+		FROM user l1
+		    ,house l2
+		    ,apt l3
+		WHERE l1.house_id = l2.id
+		AND l2.apt_id = l3.id
+        <if test="aptId != null and aptId != ''">
+            AND l2.apt_id = ${aptId}
+        </if>
+        <if test="dong != null and dong != ''">
+            AND l2.dong = #{dong}
+        </if>
+        <if test="ho != null and ho != ''">
+            AND l2.ho = #{ho}
+        </if>
+        <if test="userName != null and userName != ''">
+            AND l1.full_name = #{userName}
+        </if>
+        <if test="email != null and email != ''">
+            AND l1.email = #{email}
+        </if>
+        <if test="phone != null and phone != ''">
+            AND l1.phone = #{phone}
+        </if>
+        ORDER BY l1.reg_date DESC
+    </sql>
+
+    <select id="selectUser" parameterType="map" resultType="SimpleUser">
+        /* selectUser */
+        <include refid="sql_selectUser" />
+    </select>
+
+    <select id="selectUserList" parameterType="map" resultType="SimpleUser">
+        /* selectUserList */
+        <include refid="sql_selectUser" />
+    </select>
+
+    <!-- 외부기기 로그아웃 푸시 발송용 GCM_ID 조회 -->
+    <select id="selectUserGcmHistory" parameterType="Map" resultType="String">
+		SELECT /* selectUserGcmHistory  조영태(cyt@jahasmart.com) */
+	    	gcm_id
+	    FROM user_login_history
+	    WHERE user_id = #{userId}
+	    	AND gcm_id is not null
+	    	AND gcm_id != ''
+	    	<!-- 현재 기기는 로그아웃 하지 않는다. -->
+	    	<if test="gcmId != null and gcmId != ''">
+	    		AND gcm_id != #{gcmId}
+	    	</if>
+	   	GROUP BY gcm_id
+    </select>
+
+    <!-- 사용자 설정변경 히스토리 -->
+    <insert id="insertUserUpdateHistory" parameterType="UserUpdateHistoryVo">
+    /* insertUserUpdateHistory */
+    INSERT INTO user_update_history (
+        user_id, type, mod_id, mod_date, data, auth, user_name, email, phone, birth_year, gender, nickname, house_id
+    ) VALUES (
+        #{userId}, #{type}, #{modId}, now(), #{data}, #{auth}, #{userName}, #{email}, #{phone}, #{birthYear}, #{gender}, #{nickname}, #{houseId}
+    )
+    </insert>
+    
+    <!-- 사용자 로그인 로그아웃 기록 -->
+    <insert id="insertUserLoginLog" parameterType="UserLoginLog">
+    /* insertUserLoginLog */
+    INSERT INTO user_login_log (
+        type
+        ,user_id
+        ,maker
+        ,model
+        ,app_version
+        ,reg_date
+    ) VALUES (
+        #{type}
+        ,${userId}
+        ,#{maker}
+        ,#{model}
+        ,#{appVersion}
+        ,now()
+    )
+    </insert>
+
+</mapper>

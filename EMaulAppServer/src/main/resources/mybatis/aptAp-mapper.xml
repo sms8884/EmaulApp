@@ -1,0 +1,830 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jaha.server.emaul.mapper.AptApMapper">
+
+    <sql id="sql_selectAptApAccess">
+        SELECT distinct l1.id
+		      ,l1.apt_id
+		      ,( SELECT name FROM apt WHERE id = l1.apt_id ) apt_name
+		      ,l1.ap_uuid
+		      ,l1.ap_beacon_uuid
+		      ,l1.ap_beacon_major
+		      ,l1.ap_beacon_minor
+		      ,l1.ap_id
+		      ,l1.ap_name
+		      ,l1.ap_password
+		      ,l1.exp_ip
+		      ,l1.rssi_app
+		      ,l1.status
+		      ,l1.operation_mode
+		      ,#{_apPattern} ap_pattern
+		FROM apt_ap l1
+		LEFT OUTER JOIN apt_ap_access_auth l2
+		ON l1.id = l2.apt_ap_id
+		<where>
+		    <if test="id != null and id != ''">
+                AND l1.id = #{id}
+            </if>
+		    <if test="aptId != null and aptId != ''">
+		        AND l1.apt_id = #{aptId}
+		    </if>
+		    <if test="dong != null and dong != '' and ho != null and ho != '' and userId != null and userId != ''">
+	            AND ( 
+	                (l2.dong = #{dong} AND l2.ho = #{ho})
+	                OR ( l2.dong = #{dong} AND l2.ho = 'All' ) 
+	                OR ( l2.dong = 'All' ) OR ( l2.user_id = #{userId} ) 
+	                OR ( l2.ho_type = '1' AND l2.dong = #{dong} AND substring(#{ho}, length(#{ho}) - (l2.ho_line_digit-1) , l2.ho_line_digit) = l2.ho )  
+	                <if test="skipAuths != null">
+	                    <foreach collection="skipAuths" item="item" separator="OR" open="OR">
+	                        (find_in_set(#{item},l1.skip_auth) != 0)
+	                    </foreach>
+	                </if>
+	            )
+	        </if>
+	        <if test="_active == true">
+	            AND l1.deactive_date is null
+	        </if>
+	        <if test="_active == false">
+	            AND l1.deactive_date is not null
+	        </if>
+	        <if test="includedOperationMode != null and includedOperationMode != ''">
+	            AND l1.operation_mode like concat('%',#{includedOperationMode},'%')
+	        </if>
+		</where>
+        ORDER BY l1.reg_date DESC
+    </sql>
+    
+    <sql id="sql_selectAptAp">
+        SELECT *
+              ,( SELECT name FROM apt WHERE id = apt_ap.apt_id ) apt_name
+        FROM apt_ap
+        <where>
+	        <if test="id != null and id != ''">
+	            AND id = #{id}
+	        </if>
+	        <if test="apBeaconUuid != null and apBeaconUuid != ''">
+                AND ap_beacon_uuid = #{apBeaconUuid}
+            </if>
+	        <if test="_active == true">
+                AND deactive_date is null
+            </if>
+            <if test="_active == false">
+                AND deactive_date is not null
+            </if>
+            <if test="aptSearchType == 'notTestApt'">
+                AND apt_id != #{testAptId}
+            </if>
+            <if test="excludeAptId != null and excludeAptId.size() > 0">
+                AND apt_id not in ( <foreach collection="excludeAptId" item="item" separator=",">${item}</foreach> )
+            </if>
+            <if test='existExpIp == "Y"'>
+                AND exp_ip is not null
+            </if>
+            <if test="includedOperationMode != null and includedOperationMode != ''">
+                AND operation_mode like concat('%',#{includedOperationMode},'%')
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectAptApAccessList" parameterType="map" resultType="AptAp">
+        /* selectAptApAccessList */
+        <include refid="sql_selectAptApAccess" />
+    </select>
+    
+    <select id="selectAptApAccess" parameterType="map" resultType="AptAp">
+        /* selectAptApAccess */
+        <include refid="sql_selectAptApAccess" />
+    </select>
+    
+    <select id="selectAptAp" parameterType="map" resultType="AptAp">
+        /* selectAptAp */
+        <include refid="sql_selectAptAp" />
+    </select>
+    
+    <select id="selectAptApList" parameterType="map" resultType="AptAp">
+        /* selectAptApList */
+        <include refid="sql_selectAptAp" />
+    </select>
+    
+    <select id="selectAptApAccessDeviceAuthList" parameterType="map" resultType="map">
+        /* selectAptApAccessDeviceAuthList */
+        SELECT a.access_key accessKey
+              ,-100 sensitivity
+		FROM
+		(
+	        SELECT distinct
+			       l1.*
+			FROM apt_ap_access_device l1,
+			(
+			    SELECT distinct l1.id
+			          ,l2.apt_id
+			          ,l2.dong
+			          ,l2.ho
+			    FROM user l1
+			        ,house l2
+			        ,(
+			            SELECT l1.apt_id
+			                  ,l1.skip_auth
+			                  ,l2.apt_ap_id
+			                  ,l2.type
+			                  ,l2.dong
+			                  ,l2.ho
+			                  ,l2.ho_type
+			                  ,l2.ho_line_digit
+			                  ,l2.user_id
+			            FROM apt_ap l1
+			            LEFT OUTER JOIN apt_ap_access_auth l2
+			            ON l1.id = l2.apt_ap_id
+			            WHERE l1.deactive_date is null
+			            AND l1.ap_beacon_uuid = #{apBeaconUuid}
+			        ) l3
+			        ,user_type l4
+			    WHERE l1.house_id = l2.id
+			    AND l1.deactive_date is null
+			    AND l2.apt_id = l3.apt_id
+			    AND l1.type_id = l4.user_id
+			    AND 
+			    ( 
+			        (l3.dong = l2.dong AND l3.ho = l2.ho)
+			        OR ( l3.dong = l2.dong AND l3.ho = 'All' ) 
+			        OR ( l3.dong = 'All' ) OR ( l3.user_id = l1.id ) 
+			        OR ( l3.ho_type = '1' AND l3.dong = l2.dong AND substring(l2.ho, length(l2.ho) - (l3.ho_line_digit-1) , l3.ho_line_digit) = l3.ho )  
+			        OR 
+			        (
+			            find_in_set(if(l4.jaha = 1, 'jaha', ''), l3.skip_auth) != 0
+			            OR find_in_set(if(l4.admin = 1, 'admin', ''), l3.skip_auth) != 0
+			            OR find_in_set(if(l4.gas_checker = 1, 'gasChecker', ''), l3.skip_auth) != 0
+			            OR find_in_set(if(l4.building_guard = 1, 'buildingGuard', ''), l3.skip_auth) != 0
+			            OR find_in_set(if(l4.community_master = 1, 'communityMaster', ''), l3.skip_auth) != 0
+			            OR find_in_set(if(l4.house_host = 1, 'houseHost', ''), l3.skip_auth) != 0
+			            OR find_in_set(if(l4.official = 1, 'official', ''), l3.skip_auth) != 0
+			            OR find_in_set(if(l4.parcel_checker = 1, 'parcelChecker', ''), l3.skip_auth) != 0
+			        )
+			    )
+			) l2
+			WHERE l1.deactive_date is null
+			AND l1.user_id = l2.id
+			<if test="userBeaconUuid != null and userBeaconUuid != ''">
+			    AND l1.access_key = #{userBeaconUuid}
+			</if>
+			UNION
+			SELECT distinct
+			       l1.*
+			FROM apt_ap_access_device l1,
+			(
+			    SELECT *
+			    FROM apt_ap
+			    WHERE deactive_date is null
+			    AND ap_beacon_uuid = #{apBeaconUuid}
+			) l2
+			WHERE l1.deactive_date is null
+			AND find_in_set(l2.id, l1.apt_ap_ids) != 0
+			<if test="userBeaconUuid != null and userBeaconUuid != ''">
+                AND l1.access_key = #{userBeaconUuid}
+            </if>
+		) a
+    </select>
+    
+    <update id="saveAptApExpIp" parameterType="map">
+    /* saveAptApExpIp */
+        UPDATE apt_ap
+        SET exp_ip = #{apExpIp}
+           ,mod_date = now()
+        WHERE ap_beacon_uuid = #{apBeaconUuid}
+        AND deactive_date is null
+    </update>
+    
+    <select id="selectAptApAccessDeviceList" parameterType="map" resultType="map">
+    /* selectAptApAccessDeviceList */
+        SELECT access_key as accessKey
+              ,second_user as secondUser
+		FROM apt_ap_access_device
+		<where>
+		    <if test="_active == true">
+                AND deactive_date is null
+            </if>
+            <if test="userId != null and userId != ''">
+                AND user_id = #{userId}
+            </if>
+		</where>
+    </select>
+    
+    <select id="selectAptApMonitoring" parameterType="map" resultType="AptApMonitoring" >
+    /* selectAptApMonitoring */
+        SELECT *
+        FROM apt_ap_monitoring
+        <where>
+            <if test="apId != null and apId != ''">
+            AND ap_id = #{apId}
+            </if>
+            <if test="toDay == true">
+            AND date_format(reg_date, '%Y-%m-%d') = date_format(now(), '%Y-%m-%d')
+            </if>
+        </where>
+    </select>
+    
+    <update id="insertAptApMonitoring" parameterType="AptApMonitoring" >
+    /* insertAptApMonitoring */
+	    INSERT INTO apt_ap_monitoring
+		(
+		    id
+		    ,ap_id
+		    ,lte_rssi
+		    ,lte_rsrp
+		    ,lte_rsrq
+		    ,lte_dial
+		    ,lte_addr4
+		    ,timestamp
+		    ,monthly_timestamp
+		    ,tx_bytes
+		    ,rx_bytes
+		    ,total_tx_bytes
+		    ,total_rx_bytes
+		    ,reg_date
+		)
+		VALUES 
+		(
+		     #{id}
+		    ,#{apId}
+		    ,#{lteRssi}
+		    ,#{lteRsrp}
+		    ,#{lteRsrq}
+		    ,#{lteDial}
+		    ,#{lteAddr4}
+		    ,#{timestamp}
+		    ,#{monthlyTimestamp}
+		    ,#{txBytes}
+		    ,#{rxBytes}
+		    ,#{totalTxBytes}
+		    ,#{totalRxBytes}
+		    ,now()
+		)
+		ON DUPLICATE KEY 
+		UPDATE lte_rssi = #{lteRssi}
+	           ,lte_rsrp = #{lteRsrp}
+	           ,lte_rsrq = #{lteRsrq}
+	           ,lte_dial = #{lteDial}
+	           ,lte_addr4 = #{lteAddr4}
+	           ,timestamp = #{timestamp}
+	           ,monthly_timestamp = #{monthlyTimestamp}
+	           ,tx_bytes = #{txBytes}
+	           ,rx_bytes = #{rxBytes}
+	           ,total_tx_bytes = #{totalTxBytes}
+	           ,total_rx_bytes = #{totalRxBytes}
+	           ,reg_date = now()
+    </update>
+    
+    <insert id="insertAptApMonitoringNoti" parameterType="AptApMonitoring" >
+    /* insertAptApMonitoringNoti */
+        INSERT INTO apt_ap_monitoring_noti
+        (
+            ap_id
+            ,lte_rssi
+            ,lte_rsrp
+            ,lte_rsrq
+            ,lte_dial
+            ,lte_addr4
+            ,reg_date
+        )
+        VALUES 
+        (
+            #{apId}
+            ,#{lteRssi}
+            ,#{lteRsrp}
+            ,#{lteRsrq}
+            ,#{lteDial}
+            ,#{lteAddr4}
+            ,now()
+        )
+    </insert>
+    
+    <select id="selectAptApInspAccountList" parameterType="string" resultType="SimpleUser">
+        /* selectAptApInspaAccountList */
+        SELECT b.*
+        FROM apt_ap_insp_user a
+            ,user b
+        WHERE a.user_id = b.id 
+        AND a.type = #{type}
+        ORDER BY a.reg_date DESC
+    </select>
+    
+    <sql id="sqlAptApInspDailyList">
+        SELECT aaaa.*
+              ,bbbb.name aptName
+        FROM
+        (
+            SELECT aaa.*
+                  ,concat(<foreach collection="baseDateList" item="idx" separator=","> day${idx} </foreach>) days
+            FROM 
+            (
+                SELECT aa.id
+                      ,aa.ap_beacon_uuid apBeaconUuid
+                      ,aa.apt_id aptId
+                      ,aa.ap_id apId
+                      ,aa.ap_name apName
+                      ,date_format(aa.reg_date, '%Y-%m-%d') apRegDate
+                      <foreach collection="baseDateList" item="idx" >
+                      ,if(date_format(aa.reg_date, '%Y-%m-%d') <![CDATA[>]]> adddate(str_to_date(#{baseDate}, '%Y-%m-%d'), -${idx}), 'X', max(if( date_format(bb.reg_date, '%Y-%m-%d') = adddate(str_to_date(#{baseDate}, '%Y-%m-%d'), -${idx}) , 'Y', 'N'))) day${idx}
+                      </foreach>
+                FROM
+                (
+                    SELECT *
+                    FROM
+                    (
+                        SELECT *
+                        FROM apt_ap
+                        WHERE deactive_date is null
+                        AND ap_beacon_uuid is not null
+                        AND ap_beacon_uuid != ''
+                        <if test="aptId != null and aptId != ''">
+                        AND apt_id = #{aptId}
+                        </if>
+                        <if test="testAptId != null and testAptId != ''">
+                        AND apt_id != #{testAptId}
+                        </if>
+                        <if test="excludeAptId != null and excludeAptId.size() > 0">
+                        AND apt_id not in ( <foreach collection="excludeAptId" item="item" separator=",">${item}</foreach> )
+                        </if>
+                        <if test="includedOperationMode != null and includedOperationMode != ''">
+			                AND operation_mode like concat('%',#{includedOperationMode},'%')
+			            </if>
+                    ) a,
+                    (
+                        <foreach collection="baseDateList" item="idx" separator=" UNION" >
+                            select adddate(str_to_date(#{baseDate}, '%Y-%m-%d'), -${idx}) dailyDate
+                        </foreach>
+                    ) b
+                ) aa
+                LEFT OUTER JOIN apt_ap_monitoring bb
+                ON aa.id = bb.ap_id
+                AND aa.dailyDate = date_format(bb.reg_date, '%Y-%m-%d')
+                GROUP BY aa.id, aa.ap_beacon_uuid, aa.apt_id, aa.ap_id, aa.ap_name, aa.reg_date
+            ) aaa
+        ) aaaa
+        LEFT OUTER JOIN apt bbbb
+        ON aaaa.aptId = bbbb.id
+        WHERE aaaa.days LIKE '%N%'
+    </sql>
+    
+    <select id="selectAptApInspDailyList" parameterType="map" resultType="map">
+        /* selectAptApInspDailyList */
+        <include refid="sqlAptApInspDailyList" />
+        ORDER BY bbbb.name ASC, aaaa.id DESC
+    </select>
+    
+    <sql id="sqlAptApInspDataLimitList">
+        SELECT *
+        FROM
+        (
+            SELECT aaa.*
+                  <foreach collection="baseDateList" item="idx" >
+                  ,round( if( round(aaa.dayTotalBytes${idx} / aaa.limitData, 3) <![CDATA[>]]> 0, round(aaa.dayTotalBytes${idx} / aaa.limitData, 3), 0 ) * 100, 2) dataTotalBytesPer${idx}
+                  </foreach>
+            FROM
+            (
+                SELECT aa.*
+                       <foreach collection="baseDateList" item="idx" >
+                       ,aa.dayTotalTxBytes${idx} + aa.dayTotalRxBytes${idx} dayTotalBytes${idx}
+                       </foreach>
+                      ,ifnull(bb.data_1, 52428800) limitData
+                      ,ifnull(bb.data_2, 99) dataWarningPer
+                      ,cc.name aptName
+                FROM
+                (
+                    SELECT b.id
+                          ,b.ap_beacon_uuid apBeaconUuid
+                          ,b.apt_id aptId
+                          ,b.ap_id apId
+                          ,b.ap_name apName
+                          ,b.modem
+                          ,date_format(b.reg_date, '%Y-%m-%d') apRegDate
+                          <foreach collection="baseDateList" item="idx" >
+                          ,if(date_format(b.reg_date, '%Y-%m-%d') <![CDATA[>]]> adddate(str_to_date(#{baseDate}, '%Y-%m-%d'), -${idx}), 0, sum(if( date_format(a.reg_date, '%Y-%m-%d') = adddate(str_to_date(#{baseDate}, '%Y-%m-%d'), -${idx}) , a.total_tx_bytes, 0))) dayTotalTxBytes${idx}
+                          ,if(date_format(b.reg_date, '%Y-%m-%d') <![CDATA[>]]> adddate(str_to_date(#{baseDate}, '%Y-%m-%d'), -${idx}), 0, sum(if( date_format(a.reg_date, '%Y-%m-%d') = adddate(str_to_date(#{baseDate}, '%Y-%m-%d'), -${idx}) , a.total_rx_bytes, 0))) dayTotalRxBytes${idx}
+                          </foreach>
+                    FROM apt_ap_monitoring a,
+                    (
+                        SELECT *
+                        FROM apt_ap
+                        WHERE deactive_date is null
+                        AND ap_beacon_uuid is not null
+                        AND ap_beacon_uuid != ''
+                        <if test="aptId != null and aptId != ''">
+                        AND apt_id = #{aptId}
+                        </if>
+                        <if test="testAptId != null and testAptId != ''">
+                        AND apt_id != #{testAptId}
+                        </if>
+                        <if test="excludeAptId != null and excludeAptId.size() > 0">
+                        AND apt_id not in ( <foreach collection="excludeAptId" item="item" separator=",">${item}</foreach> )
+                        </if>
+                        <if test="includedOperationMode != null and includedOperationMode != ''">
+			                AND operation_mode like concat('%',#{includedOperationMode},'%')
+			            </if>
+                    ) b
+                    WHERE date_format(a.reg_date, '%Y-%m-%d') <![CDATA[>=]]> adddate(str_to_date(#{baseDate}, '%Y-%m-%d'), -${baseDateList.size}) 
+                    AND date_format(a.reg_date, '%Y-%m-%d') <![CDATA[<=]]> adddate(str_to_date(#{baseDate}, '%Y-%m-%d'), -1) 
+                    AND a.ap_id = b.id
+                    GROUP BY b.id, b.ap_beacon_uuid, b.apt_id, b.ap_id, b.ap_name, b.modem, b.reg_date
+                ) aa
+                LEFT OUTER JOIN  
+                (
+                    SELECT * FROM common_code
+                    WHERE code_group = 'DATA_LIMIT'
+                ) bb
+                ON aa.modem = bb.code
+                LEFT OUTER JOIN apt cc
+                ON aa.aptId = cc.id
+            ) aaa
+        ) aaaa
+        <where>
+        <foreach collection="baseDateList" item="idx" open="(" close=")" separator="OR">
+        aaaa.dataTotalBytesPer${idx} <![CDATA[>=]]> aaaa.dataWarningPer 
+        </foreach>
+        </where>
+        
+    </sql>
+    
+    <select id="selectAptApInspDataLimitList" parameterType="map" resultType="map">
+        /* selectAptApInspDataLimitList */
+        <include refid="sqlAptApInspDataLimitList" />
+        ORDER BY aaaa.aptName ASC, aaaa.id DESC
+    </select>
+    
+    <select id="selectAptApInspWarningAptList" parameterType="map" resultType="map">
+        /* selectAptApInspWarningAptList */
+        SELECT aa.aptId
+              ,bb.name aptName
+              ,sum(dailyEmptyApCnt) dailyEmptyApCnt
+              ,sum(dataWarningApCnt) dataWarningApCnt
+        FROM
+        (
+            SELECT a.apt_id aptId
+                  ,a.ap_name apName
+                  ,ifnull(length(b.days) - length(replace(b.days, 'N', '')), 0) dailyEmptyApCnt
+                  <foreach collection="baseDateList" item="idx" open="," close=" dataWarningApCnt" separator="+" >
+                      if(c.dataTotalBytesPer${idx} >= c.dataWarningPer, 1, 0)
+                  </foreach>
+            FROM
+            (
+                SELECT *
+                FROM apt_ap
+                WHERE deactive_date is null
+                AND ap_beacon_uuid is not null
+                AND ap_beacon_uuid != ''
+                <if test="aptId != null and aptId != ''">
+                AND apt_id = #{aptId}
+                </if>
+                <if test="testAptId != null and testAptId != ''">
+                AND apt_id != #{testAptId}
+                </if>
+                <if test="excludeAptId != null and excludeAptId.size() > 0">
+                AND apt_id not in ( <foreach collection="excludeAptId" item="item" separator=",">${item}</foreach> )
+                </if>
+                <if test="includedOperationMode != null and includedOperationMode != ''">
+	                AND operation_mode like concat('%',#{includedOperationMode},'%')
+	            </if>
+            ) a
+            LEFT OUTER JOIN
+            (
+                <include refid="sqlAptApInspDailyList" />
+            ) b
+            ON a.id = b.id
+            LEFT OUTER JOIN
+            (
+                <include refid="sqlAptApInspDataLimitList" />
+            ) c
+            ON a.id = c.id
+        ) aa
+        LEFT OUTER JOIN apt bb
+        ON aa.aptId = bb.id
+        WHERE (aa.dailyEmptyApCnt > 0 OR aa.dataWarningApCnt > 0)
+        GROUP BY aa.aptId, bb.name
+        ORDER BY bb.name ASC
+    </select>
+    
+    <select id="selectDate" resultType="java.util.Date">
+    /* selectDate */
+        SELECT now()
+    </select>
+    
+    <sql id="sqlSelectNoHistoryApList">
+	    SELECT a.*
+		FROM 
+		(
+		    SELECT *
+		    FROM apt_ap
+		    WHERE deactive_date is null
+		    AND ap_beacon_uuid is not null
+		    AND ap_beacon_uuid != ''
+		    <if test="testAptId != null and testAptId != ''">
+                AND apt_id != #{testAptId}
+            </if>
+            <if test="excludeAptId != null and excludeAptId.size() > 0">
+            AND apt_id not in ( <foreach collection="excludeAptId" item="item" separator=",">${item}</foreach> )
+            </if>
+		) a
+		LEFT OUTER JOIN
+		(
+		    SELECT ap_id, count(*) successCnt
+		    FROM
+		    (
+		        SELECT * 
+		        FROM apt_ap_access_log
+		        WHERE waiting_yn is null
+		        AND success != 'N'
+		        <if test="_searchType == 'day'">
+                    AND access_date <![CDATA[>=]]> str_to_date(date_format(now(), '%Y-%m-%d'), '%Y-%m-%d')
+		        </if>
+		        <if test="_searchType == 'time'">
+                    AND access_date <![CDATA[>=]]> str_to_date(date_format(date_add(now(), interval -${_hour} HOUR), '%Y-%m-%d %H'), '%Y-%m-%d %H')		        
+		        </if>
+		        ORDER BY id desc
+		    ) aa
+		    GROUP BY ap_id
+		)b
+		ON a.id = b.ap_id
+		WHERE b.successCnt is null
+		ORDER BY a.id DESC
+    </sql>
+    
+    <select id="selectNoHistoryApList" parameterType="map" resultType="AptAp">
+    /* selectNoHistoryApList */
+        SELECT bbb.name aptName
+              ,aaa.*
+        FROM
+        (
+            <include refid="sqlSelectNoHistoryApList" />
+        ) aaa
+        ,apt bbb
+        WHERE aaa.apt_id = bbb.id
+        ORDER BY bbb.name, aaa.id DESC
+    </select>
+
+    <select id="selectNoHistoryApAptList" parameterType="map" resultType="map" >
+    /* selectNoHistoryApAptList */
+        SELECT aaa.apt_id aptId
+              ,bbb.name aptName
+              ,count(*) apCnt
+        FROM
+        (
+            <include refid="sqlSelectNoHistoryApList" />
+        ) aaa
+        ,apt bbb
+        WHERE aaa.apt_id = bbb.id
+        GROUP BY aaa.apt_id, bbb.name
+        ORDER BY bbb.name, aaa.id DESC
+    </select>
+    
+    <update id="insertApMonitoringAlive" parameterType="AptApMonitoringAlive" >
+    /* insertApMonitoringAlive */
+        INSERT INTO apt_ap_monitoring_alive
+        (
+            type
+            ,ap_id
+            ,exp_ip
+            ,success
+            ,reg_id
+            ,reg_date
+            ,memo
+        )
+        VALUES
+        (
+            #{type}
+            ,#{apId}
+            ,#{expIp}
+            ,#{success}
+            ,#{regId}
+            ,#{regDate}
+            ,#{memo}
+        )
+    </update>
+
+    <delete id="deleteApMonitoringAlive" parameterType="map">
+    /* deleteApMonitoringAlive */
+        DELETE FROM apt_ap_monitoring_alive
+        WHERE 
+        <if test="storagePeriod != null">
+            reg_date <![CDATA[<]]> str_to_date(date_format(date_add(now(), interval -(#{storagePeriod}-1) DAY), '%Y-%m-%d'), '%Y-%m-%d') /* 설정된 일수 이전 데이터삭제 */
+        </if>
+        <if test="storagePeriod == null">
+            reg_date <![CDATA[<]]> adddate(adddate(curdate(), interval -1 month), interval -(day(now()) -1) day) /* 설정이 없이면 지난달 1일보다 이전데이터 삭제 ( 2달간유지 ) */
+        </if>
+    </delete>
+    
+         <select id="selectAptApUserMonitoringListBatch" parameterType="map" resultType="map">
+        /* selectAptApUserMonitoringListBatch */
+		  SELECT 
+		    a.id as apt_id , e.sidoNm,e.sggNm,a.name,b.accessCount,c.newUser,d.deactiveUser
+		 FROM
+		    ( SELECT DISTINCT a.apt_id as id ,b.registered_apt , b.virtual ,b.name
+              FROM
+                apt_ap a , apt b
+              WHERE
+              a.apt_id = b.id
+              <if test="exceptAptList != null and exceptAptList.size>0">
+            		   AND  apt_id not in
+                <foreach collection="exceptAptList" item="item" separator="," open="("  close=")" >
+                    #{item}
+                </foreach>
+           </if>
+		   ) a
+	   LEFT OUTER JOIN
+		    (
+			    SELECT 
+			        a.apt_id, COUNT(b.id) accessCount, COUNT(DISTINCT b.user_id) uniqueUser ,DATE_FORMAT(b.access_date, '%Y-%m-%d') as accessDate
+			    FROM
+			        apt_ap a, apt_ap_access_log b
+			    WHERE
+			        a.id = b.ap_id
+			     AND (b.access_date <![CDATA[>=]]> adddate(str_to_date(#{sDate}, '%Y-%m-%d'),interval -1 day) AND b.access_date <![CDATA[<]]> str_to_date(#{sDate}, '%Y-%m-%d') )
+			    GROUP BY a.apt_id
+		    ) b 
+	   ON a.id = b.apt_id
+	   LEFT OUTER JOIN  
+		(
+			 SELECT   a.reg_date, a.newUser,a.apt_id
+
+      FROM
+          ( SELECT  
+              reg_date, COUNT(*) newUser , a.apt_id
+          FROM
+              (	SELECT 
+				a.id, DATE_FORMAT(a.reg_date, '%Y-%m-%d') reg_date ,b.apt_id
+				FROM
+				user a,   house b, apt c,
+                
+						(
+							SELECT DISTINCT apt_id
+							from apt_ap  
+							<where>
+							<if test="exceptAptList != null and exceptAptList.size>0">
+				            		     apt_id not in
+				                <foreach collection="exceptAptList" item="item" separator="," open="("  close=")" >
+				                    #{item}
+				                </foreach>
+				            </if>
+				            </where>
+
+						) d
+              WHERE a.house_id = b.id
+              AND b.apt_id = c.id
+              and c.id = d.apt_id
+
+              ) a 
+          WHERE
+            reg_date  <![CDATA[>=]]>  ADDDATE(STR_TO_DATE(#{sDate}, '%Y-%m-%d'), interval -1 day) AND reg_date  <![CDATA[<]]>  STR_TO_DATE(#{sDate}, '%Y-%m-%d')
+          GROUP BY a.apt_id
+          ) a
+		) c
+		on a.id = c.apt_id
+		
+		
+		LEFT OUTER JOIN 
+		(
+			SELECT h.apt_id as aptId
+				 ,count(*) as  deactiveUser
+			FROM   user u
+				,house h
+		    WHERE 
+		    	u.house_id = h.id 
+			    AND (u.deactive_date <![CDATA[>=]]> adddate(str_to_date(#{sDate}, '%Y-%m-%d'),interval -1 day )AND u.deactive_date <![CDATA[<]]> str_to_date(#{sDate}, '%Y-%m-%d') )
+			    AND 	 u.deactive_date is not null
+		  GROUP BY  h.apt_id
+		
+		) d
+		on a.id = d.aptId
+		
+		  LEFT OUTER JOIN
+        (
+		   SELECT ap.apt_id 
+			   , a.시도명 sidoNm 
+			   ,a.시군구명 sggNm 
+		   FROM address a , apt_ap ap , apt apt
+		   WHERE
+            	ap.apt_id = apt.id AND apt.address_code =  a.건물관리번호
+            GROUP BY ap.apt_id
+        ) e
+        
+        on a.id = e.apt_id
+		
+		WHERE registered_apt = TRUE
+		AND virtual = FALSE
+    </select>
+    
+    
+    
+    <update id="insertAptApUserMonitroing" parameterType="map" >
+    /* insertAptApUserMonitroing */
+             INSERT INTO apt_ap_user_stats
+        (
+             apt_id
+            ,sido_nm
+            ,sgg_nm
+            ,apt_name
+            ,access_count
+            ,new_user
+            ,deactive_user
+            ,total_user
+            ,reg_date
+        )
+        VALUES
+        (
+            #{apt_id}
+            ,#{sidoNm}
+            ,#{sggNm}
+            ,#{name}
+            ,#{accessCount}
+            ,#{newUser}
+            ,#{deactiveUser}
+            ,#{totalUser}
+            , adddate(date_format(now(),'%Y-%m-%d'),interval -1 day)
+        )
+    </update>
+    
+    
+    <select id="selectAptApMonitoringTotalUser" parameterType="map" resultType="int">
+    /* selectAptApMonitoringTotalUser */
+        SELECT count(*) totalCnt
+        FROM 
+        (
+            SELECT a.id, a.reg_date, c.id apt_id
+            FROM user a, house b, apt c
+            WHERE a.house_id = b.id
+            AND b.apt_id = c.id
+        ) a
+        WHERE a.apt_id = #{apt_id}
+    </select>
+    
+    <insert id="insertAptApAccessLog" parameterType="AptApAccessLog" >
+    /* insertAptApAccessLog */
+        INSERT INTO apt_ap_access_log
+        (
+            ap_id
+            ,user_id
+            ,access_device_id
+            ,access_date
+            ,mobile_device_model
+            ,mobile_device_os
+            ,app_version
+            ,open_type
+            ,delay_time
+            ,success
+            ,exp_ip
+            ,memo 
+            ,waiting_yn
+            ,in_out
+        )
+        VALUES 
+        (
+            #{apId}
+            ,#{userId}
+            ,#{accessDeviceId}
+            ,#{accessDate}
+            ,#{mobileDeviceModel}
+            ,#{mobileDeviceOs}
+            ,#{appVersion}
+            ,#{openType}
+            ,#{delayTime}
+            ,#{success}
+            ,#{expIp}
+            ,#{memo}
+            ,#{waitingYn}
+            ,#{inOut}
+        )
+    </insert>
+
+    <insert id="insertApBrokenLog" parameterType="AptApBrokenLog">
+    /* insertApBrokenLog */
+        INSERT INTO apt_ap_broken_log
+        (
+            ap_id
+            ,exp_ip
+            ,modem
+            ,firmware_version
+            ,app_version
+            ,reg_user
+            ,reg_date
+            ,memo
+        )
+        VALUES 
+        (
+            #{apId}
+            ,#{expIp}
+            ,#{modem}
+            ,#{firmwareVersion}
+            ,#{appVersion}
+            ,#{regUser}
+            ,now()
+            ,#{memo}
+        )
+    </insert>
+  
+    <select id="selectExceptApt" parameterType="map" resultType="map" >
+    /* selectExceptApt */
+        SELECT * FROM emaul.common_code  a
+		WHERE a.code = #{type};
+    </select>
+	
+</mapper>

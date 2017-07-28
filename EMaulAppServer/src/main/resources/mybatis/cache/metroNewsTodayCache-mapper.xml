@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jaha.server.emaul.v2.mapper.cache.MetroNewsTodayCacheMapper">
+
+	<!-- 메트로 오늘의 뉴스 JSON 데이타를 등록한다. -->
+	<insert id="insertMetroNewsTodayCache" parameterType="MetroNewsTodayCacheVo" useGeneratedKeys="true" keyProperty="id">
+	    INSERT /* insertMetroNewsTodayCache, 전강욱(realsnake@jahasmart.com) */ INTO metro_news_today_cache (
+			today_news_json
+		    , reg_date
+	    ) VALUES (
+		    #{todayNewsJson}
+		    , NOW()
+	    )
+	</insert>
+
+	<!-- 최근 30분전부터 등록된 메트로 오늘의 뉴스 JSON 데이타 한 건을 조회한다. -->
+	<select id="selectMetroNewsTodayCacheBefore30Minutes" resultType="MetroNewsTodayCacheVo">
+		SELECT today_news_json
+		FROM metro_news_today_cache
+		WHERE reg_date > DATE_ADD(NOW(), INTERVAL -30 MINUTE)
+		ORDER BY id DESC
+		LIMIT 0, 1
+    </select>
+
+</mapper>
